@@ -1,0 +1,15 @@
+[project]
+name = "credidentity"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "faker>=40.28.1",
+    "google-cloud-aiplatform>=1.159.0",
+    "numpy>=2.4.6",
+    "pandas>=3.0.3",
+    "plotly>=6.8.0",
+    "requests>=2.34.2",
+    "streamlit>=1.58.0",
+]
