@@ -7,7 +7,7 @@ import streamlit as st
 API_URL = "http://localhost:8000/api/v1/evaluate"
 
 @st.cache_data(ttl=60)
-def get_msme_data(msme_id="MSME-2026-X94B"):
+def get_msme_data(msme_id="MSME-2026-WCVY98"):
     """
     Attempts to fetch live ML predictions from the backend API.
     If the API is unreachable (e.g., Member 1 is still coding), 
@@ -27,3 +27,18 @@ def get_msme_data(msme_id="MSME-2026-X94B"):
     
     with open(mock_path, "r") as f:
         return json.load(f)
+    
+
+def get_msme_dropdown_options():
+    """Fetches the list of all companies to populate the Streamlit selectbox."""
+    try:
+        response = requests.get("http://127.0.0.1:8000/api/v1/msmes", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            # Format it nicely like: "Jhaveri-Buch (MSME-2026-WCVY98)"
+            return [f"{item['company_name']} ({item['msme_id']})" for item in data['msmes']]
+    except requests.exceptions.ConnectionError:
+        pass
+    
+    # Fallback if backend is off
+    return ["Jhaveri-Buch (MSME-2026-WCVY98)"]
