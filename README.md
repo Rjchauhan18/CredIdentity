@@ -1,18 +1,28 @@
-# 🏦 IDBI CredIdentity: AI-Driven MSME Financial Health Card
-
-[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B?style=flat&logo=streamlit)](https://streamlit.io/)
-[![AutoGluon](https://img.shields.io/badge/ML_Engine-AutoGluon-orange?style=flat)]()
-[![Package Manager](https://img.shields.io/badge/Manager-uv-blueviolet?style=flat)](https://github.com/astral-sh/uv)
-[![Kaggle](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?style=flat&logo=kaggle)](https://www.kaggle.com/code/chauhanrj/idbi-msme-financial-health-score)
-[![GitHub Actions - HF Sync](https://github.com/Rjchauhan18/CredIdentity/actions/workflows/hf_sync.yml/badge.svg)](https://github.com/Rjchauhan18/CredIdentity/actions)
-> **"Less than 11% of Indian MSMEs have access to formal credit — not because they are bad businesses, but because traditional scoring systems look at the wrong metrics. We fix that by creating a credit identity starting from zero."**
-
-
-#### 🎯 **Live Demo Platform:** [🔗 Explore the Live Application on Hugging Face Spaces](https://huggingface.co/spaces/Rjchauhan/credidentity)
+---
+title: IDBI MSME CredIdentity
+emoji: 🏦
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
 ---
 
-## 🎯 Hackathon Track Context
+# 🏦 IDBI CredIdentity: AI-Driven MSME Financial Health Card
+
+[![FastAPI badge reading API FastAPI, representing the backend API framework used in the project](https://img.shields.io/badge/API-FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Streamlit badge reading Frontend Streamlit, representing the frontend visualization framework used in the project](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B?style=flat&logo=streamlit)](https://streamlit.io/)
+[![AutoGluon badge reading ML Engine AutoGluon, representing the machine learning engine used](https://img.shields.io/badge/ML_Engine-AutoGluon-orange?style=flat)]()
+[![Package manager badge reading Manager uv, representing the uv package manager used for dependency management](https://img.shields.io/badge/Manager-uv-blueviolet?style=flat)](https://github.com/astral-sh/uv)
+[![GitHub Actions badge indicating HF Sync workflow status for repository automation](https://github.com/Rjchauhan18/CredIdentity/actions/workflows/hf_sync.yml/badge.svg)](https://github.com/Rjchauhan18/CredIdentity/actions)
+> **"Less than 11% of Indian MSMEs have access to formal credit — not because they are bad businesses, but because traditional scoring systems look at the wrong metrics. We fix that by creating a credit identity starting from zero."**
+
+### 🎯 **Live Demo Platform:** [🔗 Explore the Live Application on Hugging Face Spaces](https://huggingface.co/spaces/Rjchauhan/credidentity)
+### 👉 Click Here to Open : [![Kaggle badge reading Kaggle Notebook, linking to the project notebook on Kaggle](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?style=flat&logo=kaggle)](https://www.kaggle.com/code/chauhanrj/idbi-msme-financial-health-score)
+
+---
+
+## 🎯 Hackathon Track
 * **Track:** Track 03: MSME Lending — AI-Driven Financial Health Card
 * **Theme:** Financial Inclusion, Digital Lending, and Credit Decisioning
 * **Problem Statement:** Traditional credit evaluation relies heavily on collateral and historical CIBIL data. New-to-Credit (NTC) and New-to-Bank (NTB) micro-enterprises are systematically excluded due to the absence of a unified assessment framework, leading to high rejection rates.
