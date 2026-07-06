@@ -16,49 +16,35 @@ if os.path.exists(csv_path):
     
     # -----------------------------------------------------------------
     # METRIC 1: TOTAL MSMEs EVALUATED
-    # Logic: Calculates the number of completely healthy profiles.
-    # By passing a standard string without a "-" sign, Streamlit 
-    # automatically renders an Up Arrow in Green.
     # -----------------------------------------------------------------
     critical_risks = len(df[(df['bounce_mandate_failure_rate'] > 0.1) | (df['average_monthly_balance'] < 0)])
     healthy_count = len(df) - critical_risks
     
     col1.metric(
         label="Total MSMEs Evaluated", 
-        value=f"{len(df):,}", 
-        delta=f"{healthy_count} Low-Risk Profiles", 
-        delta_color="normal" 
+        value=f"{len(df):,}"
     )
     
     # -----------------------------------------------------------------
     # METRIC 2: AVG MONTHLY BALANCE
-    # Logic: Shows actual average revenue growth. 
-    # NOTE: If your CSV data is actually averaging negative growth, 
-    # this will (and should) correctly display as a Red Down-Arrow to alert you.
     # -----------------------------------------------------------------
     avg_balance = df['average_monthly_balance'].mean()
     avg_growth = df['monthly_revenue_growth_rate'].mean() * 100
     
     col2.metric(
         label="Avg Monthly Balance", 
-        value=f"₹{avg_balance:,.0f}", 
-        delta=f"{avg_growth:+.1f}% Avg Revenue Growth", 
-        delta_color="normal"  
+        value=f"₹{avg_balance:,.0f}"
     )
     
     # -----------------------------------------------------------------
     # METRIC 3: SYSTEMIC BOUNCE RATE
-    # Logic: Instead of a negative variance, we calculate the inverse 
-    # positive "Success Rate" (100% - Bounce Rate).
     # -----------------------------------------------------------------
     avg_bounce_rate = df['bounce_mandate_failure_rate'].mean() * 100
     success_rate = 100 - avg_bounce_rate
     
     col3.metric(
         label="Systemic Bounce Rate", 
-        value=f"{avg_bounce_rate:.1f}%", 
-        delta=f"{success_rate:.1f}% Mandate Clearance", 
-        delta_color="normal"
+        value=f"{avg_bounce_rate:.1f}%"
     )
 
     st.subheader("Macro Liquidity Distribution")
