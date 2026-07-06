@@ -3,6 +3,7 @@ name: Sync Repository to Hugging Face Spaces
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: 
 
 jobs:
   deploy:
@@ -19,4 +20,19 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN_WRITE }}
         run: |
           git remote add hf https://x-token-auth:$HF_TOKEN@huggingface.co/spaces/Rjchauhan/credidentity
-          git push --force hf main
+          
+          # Fetch the latest commit hash from the Hugging Face remote
+          REMOTE_COMMIT=$(git ls-remote hf refs/heads/main | awk '{print $1}')
+          # Get the current commit hash from the local GitHub runner
+          LOCAL_COMMIT=$(git rev-parse HEAD)
+          
+          echo "GitHub Local Commit: $LOCAL_COMMIT"
+          echo "Hugging Face Remote Commit: $REMOTE_COMMIT"
+          
+          # Check if the hashes match
+          if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
+            echo "✅ Hugging Face Space is already perfectly in sync. Skipping push."
+          else
+            echo "🔄 Differences detected! Syncing GitHub main to Hugging Face..."
+            git push --force hf main
+          fi
