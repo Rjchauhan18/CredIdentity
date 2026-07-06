@@ -1,4 +1,4 @@
-name: Sync Repository to Hugging Face Spaces
+name: GithubAction HF Sync
 
 on:
   push:
