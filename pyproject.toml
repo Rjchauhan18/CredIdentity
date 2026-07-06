@@ -1,18 +1,27 @@
 [project]
 name = "credidentity"
 version = "0.1.0"
-description = "Add your description here"
+description = "An advanced, data-driven financial evaluation ecosystem designed for **IDBI Bank** to assess New-to-Credit (NTC) MSMEs. By leveraging digital footprints from India's digital public infrastructure (DPI)—including Account Aggregator networks, GST filing history, and EPFO contributions—this platform replaces traditional collateral-based lending with algorithmic risk profiling."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "==3.10.*"
 dependencies = [
+    "autogluon[all]>=1.5.0",
+    "autogluon-tabular[all]>=1.5.0",
+    "catboost>=1.2.10",
     "faker>=40.28.1",
     "fastapi>=0.139.0",
     "google-cloud-aiplatform>=1.159.0",
-    "numpy>=2.4.6",
-    "pandas>=3.0.3",
+    "huggingface-hub[torch]<1.0",
+    "ijson>=3.5.0",
+    "numpy<2.4.0",
+    "pandas<2.4.0",
     "plotly>=6.8.0",
     "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
     "requests>=2.34.2",
     "streamlit>=1.58.0",
+    "torch<2.10",
     "uvicorn>=0.49.0",
+    "xgboost<3.2",
+    "scikit-learn==1.6.1",
 ]

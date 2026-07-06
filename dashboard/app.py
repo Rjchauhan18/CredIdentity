@@ -17,13 +17,4 @@ st.sidebar.page_link(page_2, label="Underwriting Desk", icon="🛡️")
 st.sidebar.page_link(page_3, label="Executive Portfolio", icon="📈")
 
 st.sidebar.divider()
-# st.sidebar.subheader("Pipeline Architecture")
-# st.sidebar.markdown("""
-# - **Primary Scorer:** TabNet Deep Learning
-# - **Validator:** XGBoost Ensemble
-# - **Fraud Engine:** Isolation Forest
-# - **Explainability:** SHAP TreeExplainer
-# """)
-# st.sidebar.success("Core ML Pipeline: Ready")
-
 pg.run()

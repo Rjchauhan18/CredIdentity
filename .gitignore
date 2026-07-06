@@ -218,6 +218,15 @@ __marimo__/
 .streamlit/secrets.toml
 
 
-dashboard/mock_data
+data/raw
 
-data/
+# the mdoel is trained on this dataset 
+data/processed/msme_final_engineered_features.csv 
+
+# Mock dataset used for building frontend in intial development phase
+data/processed/msme_engineered_features1.csv 
+
+model/results/
+model/local_model_weights/
+media/
+

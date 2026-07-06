@@ -43,7 +43,7 @@ class MSMEEvaluationResponse(BaseModel):
     challenger_disagreement_flag: bool
     four_pillars: FourPillars
     
-    # FIX: Valid Python identifier mapping to the exact JSON key string
+    # Valid Python identifier mapping to the exact JSON key string
     engineered_features_12: EngineeredFeatures = Field(..., alias="12_engineered_features")
     
     shap_drivers: ShapDrivers
