@@ -1,8 +1,8 @@
 msme_id,company_name,average_monthly_balance,inflow_to_outflow_ratio,bounce_mandate_failure_rate,balance_depletion_speed_days,gstr1_vs_gstr3b_variance,late_gst_filing_frequency,b2b_vs_b2c_revenue_ratio,monthly_revenue_growth_rate,active_employee_count_trend,epfo_wage_consistency_score,upi_transaction_velocity_daily,night_transaction_ratio,is_defaulter,risk_band
+MSME-2026-SFIO07,"Ahluwalia, Muni and Sekhon",145485.56,1.032,0.224,4.8,21633.40,0.5,0.23,-0.069,0.0,50.0,21.0,0.074,1,C
 MSME-2026-XZYR02,Chanda Group,677864.97,1.209,0.185,25.0,111347.82,0.667,15.67,-0.031,0.0,33.3,20.2,0.117,1,C
 MSME-2026-NMTH07,"Balasubramanian, Sarraf and Karnik",990894.85,1.021,0.004,30.7,39584.38,0.0,4.26,0.060,-0.02,100.0,20.7,0.09,0,A
 MSME-2026-VWBI28,Hans Ltd,1162039.05,1.045,0.026,35.6,48262.77,0.0,0.89,-0.040,0.03,83.3,22.3,0.102,0,B
-MSME-2026-SFIO07,"Ahluwalia, Muni and Sekhon",145485.56,1.032,0.224,4.8,21633.40,0.5,0.23,-0.069,0.0,50.0,21.0,0.074,1,C
 MSME-2026-ZEUE04,Krishnamurthy-Sharma,608263.50,1.096,0.032,21.0,73958.28,0.167,0.64,0.073,0.026,83.3,16.3,0.108,0,B
 MSME-2026-EASP24,"Dutt, Grewal and Purohit",886538.02,1.363,0.223,38.3,60471.21,0.333,0.14,0.014,0.0,16.7,21.0,0.092,1,C
 MSME-2026-KUAF37,Bhatia-Prasad,753000.01,0.867,0.026,23.1,11711.48,0.167,1.94,-0.134,-0.025,100.0,17.0,0.108,0,B
