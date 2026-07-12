@@ -79,6 +79,43 @@ Instead of a single opaque number, the machine learning models capture signals a
 
 ---
 
+## 📈 Model Validation & Dataset Refinement
+
+Developing a robust MSME credit scoring model required more than maximizing predictive performance. During initial experimentation, the synthetic dataset produced near-perfect classification results (ROC-AUC ≈ **0.9999**), indicating that certain engineered compliance features were unintentionally leaking information about the target variable.
+
+Rather than accepting these unrealistic results, the entire synthetic data generation pipeline was audited and redesigned.
+
+### Key Improvements
+
+- Reduced deterministic relationships between engineered features and the default label.
+- Introduced overlapping statistical distributions for GST and EPFO behaviour.
+- Added realistic stochastic variability to compliance patterns.
+- Increased feature overlap between healthy and distressed MSMEs.
+- Re-engineered the dataset to better represent real-world uncertainty.
+
+### Performance Comparison
+
+| Metric | Initial Dataset | Final Dataset |
+|---------|---------------:|--------------:|
+| ROC-AUC | **0.9999** | **0.9777** |
+| Accuracy | **99%+** | **94.60%** |
+| Balanced Accuracy | — | **87.65%** |
+| MCC | — | **0.7818** |
+
+### Final Model Characteristics
+
+The final AutoGluon ensemble no longer relies on a single dominant feature. Instead, predictions are driven by multiple complementary financial indicators, including:
+
+- Average Monthly Balance
+- EPFO Wage Consistency
+- GST Filing Behaviour
+- Cash Flow Ratio
+- Balance Depletion Speed
+
+SHAP analysis confirms that the model bases its decisions on economically meaningful signals rather than synthetic shortcuts, resulting in a substantially more realistic MSME financial health assessment pipeline.
+
+---
+
 ## 🛠️ Local Installation & Running Guide
 
 Ensure you have Python 3.10 installed. This project leverages the ultra-fast package manager `uv` by Astral for execution safety.
