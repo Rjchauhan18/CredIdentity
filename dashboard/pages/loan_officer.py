@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from utils.api_client import get_msme_data, get_msme_dropdown_options
+from utils.visualizations import create_driver_chart
 
 # Set page layout to wide for maximum data real estate
 st.set_page_config(layout="wide")
@@ -76,14 +77,17 @@ if selected_option and "No MSME records found" not in selected_option:
         st.divider()
 
         # ---------------------------------------------------------
-        # SHAP EXPLAINABILITY DRILLDOWN (STRENGTHS VS RISKS)
+        # EXPLAINABILITY DRILLDOWN (STRENGTHS VS RISKS)
         # ---------------------------------------------------------
-        st.subheader("📊 SHAP Feature Attribution Insights")
-        st.caption("Direct text insights extracted from the model's mathematical margin contributions.")
+        st.subheader("📊 Feature Attribution Insights")
+        st.caption("Drivers ranked by the model's real permutation feature importance (ROC-AUC points); direction set by each value vs. the cohort median.")
 
         shap_drivers = data.get('shap_drivers', {})
         strengths = shap_drivers.get('top_3_strengths', [])
         risks = shap_drivers.get('top_3_risks', [])
+
+        if strengths or risks:
+            st.plotly_chart(create_driver_chart(strengths, risks), width="stretch")
 
         col_str, col_rsk = st.columns(2)
 
@@ -94,7 +98,7 @@ if selected_option and "No MSME records found" not in selected_option:
                     with st.container(border=True):
                         st.markdown(f"**{idx+1}. {item.get('feature_name')}**")
                         st.markdown(f"*{item.get('friendly_text')}*")
-                        st.caption(f"Impact Attribution Value: `+{item.get('impact_value')}`")
+                        st.caption(f"Global importance: `+{item.get('impact_value')}` pts")
             else:
                 st.info("No distinct model strengths computed.")
 
@@ -105,7 +109,7 @@ if selected_option and "No MSME records found" not in selected_option:
                     with st.container(border=True):
                         st.markdown(f"**{idx+1}. {item.get('feature_name')}**")
                         st.markdown(f"*{item.get('friendly_text')}*")
-                        st.caption(f"Impact Attribution Value: `{item.get('impact_value')}`")
+                        st.caption(f"Global importance: `{item.get('impact_value')}` pts")
             else:
                 st.info("No distinct model risk parameters flag detected.")
 

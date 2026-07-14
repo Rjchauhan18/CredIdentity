@@ -1,9 +1,10 @@
 import streamlit as st
-from utils.visualizations import create_radar_chart
+from utils.visualizations import create_radar_chart, create_driver_chart, create_score_gauge
 from utils.loan_matcher import get_top_matches
 from utils.api_client import get_msme_data, get_msme_dropdown_options
 
 st.title("🏢 MSME Financial Health Card")
+st.caption("Alternative-data credit identity for New-to-Credit micro-enterprises")
 
 options = get_msme_dropdown_options()
 
@@ -33,42 +34,93 @@ if options:
             st.error(f"⚠️ Could not locate MSME profile.")
         else:
             # 6. Render Dashboard
-            st.subheader(f"Verified Digital Footprint Identity Profile for **{data['company_name']}**")
+            score = data['overall_credit_score']
+            tier = data['credit_rating_tier']
+
+            st.markdown(f"#### {data['company_name']}")
+            st.caption(f"Verified digital-footprint identity · {search_id}")
             st.divider()
 
-            col1, col2 = st.columns([1, 1.8])
+            col1, col2 = st.columns([1, 1.6], gap="large")
 
             with col1:
-                st.markdown("### Unified Health Score")
-                score = data['overall_credit_score']
-                
-                if score >= 750: color = "#66BB6A"
-                elif score >= 600: color = "#FFA726"
-                else: color = "#EF5350"
-                    
-                st.markdown(f"<h1 style='text-align: center; color: {color}; font-size: 72px; margin-bottom: 0px;'>{score}</h1>", unsafe_allow_html=True)
-                st.markdown(f"<p style='text-align: center; font-size: 20px;'>Rating Tier: <b>{data['credit_rating_tier']}</b></p>", unsafe_allow_html=True)
-                
-                st.plotly_chart(create_radar_chart(data['four_pillars']), width="stretch")
+                # Credit-score gauge (replaces the bare floating number)
+                st.plotly_chart(create_score_gauge(score, tier), width="stretch")
+                st.markdown(
+                    f"<p style='text-align:center; color:#888; margin-top:-12px;'>"
+                    f"Model confidence: <b>{data['confidence_level']}%</b></p>",
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown("##### Four-Pillar Breakdown")
+                pillars = data['four_pillars']
+                pillar_labels = {
+                    'cash_flow_resiliency': '💧 Cash Flow',
+                    'commercial_activity_revenue': '📈 Commercial',
+                    'operational_employee_stability': '👥 Operational',
+                    'compliance_risk': '🛡️ Compliance',
+                }
+                pcols = st.columns(2)
+                for i, (key, label) in enumerate(pillar_labels.items()):
+                    with pcols[i % 2]:
+                        st.metric(label, f"{pillars[key]}/100")
+
+                st.plotly_chart(create_radar_chart(pillars), width="stretch")
 
             with col2:
-                st.markdown("### SHAP Performance Insights")
-                
-                st.success("**Top Strengths (Score Drivers):**\n" + "\n".join([f"- {s['friendly_text']}" for s in data['shap_drivers']['top_3_strengths']]))
-                st.error("**Risk Flags (Areas of Distress):**\n" + "\n".join([f"- {r['friendly_text']}" for r in data['shap_drivers']['top_3_risks']]))
-                
-                st.info(f"💡 **Actionable Optimization Guidance:** {data['actionable_guidance']}")
-                
-                st.markdown("### OCEN 4.0 Pre-Matched Loan Products")
-                matches = get_top_matches(data['overall_credit_score'])
-                
-                for m in matches:
-                    with st.container(border=True):
-                        c1, c2 = st.columns([2, 1])
-                        c1.markdown(f"🏦 **{m['lender_name']}** — *{m['loan_type']}*")
-                        c1.caption(f"Tenure: {m['tenure_months']} Mos | Product ID: {m['product_id']}")
-                        c2.markdown(f"**{m['interest_rate_pa']}% p.a.**")
-                        c2.markdown(f"Limit: **₹{m['max_amount_inr']:,.0f}**")
+                strengths = data['shap_drivers']['top_3_strengths']
+                risks = data['shap_drivers']['top_3_risks']
+
+                st.markdown("##### 🔍 Model-Driven Insights")
+                st.caption("Ranked by the model's real permutation feature importance (ROC-AUC points).")
+
+                st.plotly_chart(create_driver_chart(strengths, risks), width="stretch")
+
+                icol1, icol2 = st.columns(2)
+                with icol1:
+                    st.markdown("**✅ Strengths**")
+                    for s in strengths:
+                        st.markdown(
+                            f"<div style='padding:8px 10px;margin-bottom:6px;border-left:3px solid #22C55E;"
+                            f"background:rgba(34,197,94,0.08);border-radius:4px;'>"
+                            f"<b>{s['feature_name']}</b> <span style='color:#22C55E;'>+{s['impact_value']:.1f} pts</span>"
+                            f"<br><span style='color:#94A3B8;font-size:13px;'>{s['friendly_text']}</span></div>",
+                            unsafe_allow_html=True,
+                        )
+                    if not strengths:
+                        st.caption("No favorable drivers stood out.")
+                with icol2:
+                    st.markdown("**⚠️ Risk Flags**")
+                    for r in risks:
+                        st.markdown(
+                            f"<div style='padding:8px 10px;margin-bottom:6px;border-left:3px solid #EF4444;"
+                            f"background:rgba(239,68,68,0.08);border-radius:4px;'>"
+                            f"<b>{r['feature_name']}</b> <span style='color:#EF4444;'>{r['impact_value']:.1f} pts</span>"
+                            f"<br><span style='color:#94A3B8;font-size:13px;'>{r['friendly_text']}</span></div>",
+                            unsafe_allow_html=True,
+                        )
+                    if not risks:
+                        st.caption("No distress signals detected.")
+
+                st.info(f"💡 **Actionable Guidance:** {data['actionable_guidance']}")
+
+            st.divider()
+            st.markdown("##### 🏦 OCEN 4.0 Pre-Matched Loan Products")
+            st.caption("Products this profile currently qualifies for, ranked by rate.")
+
+            matches = get_top_matches(score)
+            if matches:
+                mcols = st.columns(len(matches))
+                for mcol, m in zip(mcols, matches):
+                    with mcol:
+                        with st.container(border=True):
+                            st.markdown(f"**{m['lender_name']}**")
+                            st.caption(m['loan_type'])
+                            st.markdown(f"<span style='font-size:26px; font-weight:700; color:#1E88E5;'>{m['interest_rate_pa']}%</span> <span style='color:#888;'>p.a.</span>", unsafe_allow_html=True)
+                            st.markdown(f"Limit: **₹{m['max_amount_inr']:,.0f}**")
+                            st.caption(f"Tenure {m['tenure_months']} mo · {m['product_id']}")
+            else:
+                st.warning("No pre-matched products at this score. Improving the risk flags above unlocks eligibility.")
 
 else:
     st.error(f"🔌 System Alert: {options.error['message']}")

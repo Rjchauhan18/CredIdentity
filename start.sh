@@ -8,13 +8,15 @@ echo "⏳ [2/3] Waiting for Backend to download weights and boot (Checking every
 
 # Initialize a counter
 ATTEMPTS=0
-MAX_ATTEMPTS=120 # 120 attempts * 5 seconds = 10 minutes max wait time
+MAX_ATTEMPTS=300 # 300 attempts * 5 seconds = 25 minutes max wait time
+                 # (heavy AutoGluon ensemble: first cold start downloads 400+ files
+                 #  AND loads the full stack into memory, which exceeds 10 min)
 
-# Ping the health check endpoint until it returns HTTP 200
-while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' http://127.0.0.1:8000/docs)" != "200" ]]; do
+# Ping the readiness endpoint until the model is loaded (returns 200; 503 while loading)
+while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' http://127.0.0.1:8000/health)" != "200" ]]; do
     ATTEMPTS=$((ATTEMPTS+1))
     if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
-        echo "❌ Backend failed to start within 10 minutes. Check the logs."
+        echo "❌ Backend failed to become ready within 25 minutes. Check the logs above."
         kill $BACKEND_PID
         exit 1
     fi

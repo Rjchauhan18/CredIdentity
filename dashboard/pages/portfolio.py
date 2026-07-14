@@ -3,10 +3,12 @@ import pandas as pd
 import os
 
 st.title("📈 Executive Portfolio Overview")
-st.caption("Aggregated risk metrics across processed New-to-Credit (NTC) MSMEs")
+st.caption("Aggregated risk metrics across the served New-to-Credit (NTC) MSME cohort")
 st.divider()
 
-csv_path = "data/processed/msme_engineered_features.csv"
+# Read the same demo cohort the API scores, so portfolio aggregates stay consistent
+# with the individual health cards.
+csv_path = "data/processed/msme_demo_features.csv"
 
 if os.path.exists(csv_path):
     # Load the real generated data
@@ -70,4 +72,4 @@ if os.path.exists(csv_path):
     else:
         st.error(f"📊 **Trend Analysis:** Cash Flow Resiliency is under stress. {high_bounce_count} MSMEs flagged for mandate bounce rates exceeding 10%.")
 else:
-    st.info("Pipeline data not found. Please run `python data_pipeline/engineer_features.py` to populate portfolio metrics.")
+    st.info("Demo cohort not found. Please run `python -m data_pipeline.build_demo_dataset` to populate portfolio metrics.")
