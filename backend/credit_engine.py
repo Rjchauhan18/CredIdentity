@@ -23,7 +23,11 @@ FEATURE_IMPORTANCE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__)
 
 # Columns that are NOT model inputs: the label, its derived band, and the feature the
 # final model dropped as leaky (bounce_mandate_failure_rate). Stripped before inference.
-NON_FEATURE_COLUMNS = ["is_defaulter", "risk_band"]
+# bounce_mandate_failure_rate is kept in the raw `features` dict for the display-only
+# cash-flow pillar, but must never reach predict_proba — the trained model expects 11
+# features and does not include it. (AutoGluon tolerates extra columns, but we drop it
+# explicitly so intent is clear and inference stays robust to stricter loaders.)
+NON_FEATURE_COLUMNS = ["is_defaulter", "risk_band", "bounce_mandate_failure_rate"]
 
 # Global state populated at startup
 predictor = None

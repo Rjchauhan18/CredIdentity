@@ -32,7 +32,14 @@ app.add_middleware(
 
 @app.get("/health")
 def system_health_check():
-    """Readiness probe: returns 503 until the AutoGluon model is fully loaded."""
+    """Readiness probe.
+
+    The heavy model is loaded synchronously in the lifespan startup, so uvicorn does
+    not accept connections until it is ready. In practice the boot poller (start.sh)
+    therefore sees connection-refused during load and a 200 once the server is up. The
+    503 branch below is a defensive guard for any future move to background loading;
+    it keeps the endpoint correct either way.
+    """
     if not is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
