@@ -1,0 +1,22 @@
+# Local dev artifacts that must never enter the image
+.venv/
+.git/
+.github/
+.vscode/
+.agents/
+.claude/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Model weights are downloaded at runtime — never bake them in
+model/local_model_weights/
+
+# Large training data (model pulls what it needs at runtime)
+data/processed/msme_final_engineered_features.csv
+data/raw/
+
+# Misc
+*.log
+.env

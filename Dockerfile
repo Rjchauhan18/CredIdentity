@@ -21,14 +21,15 @@ RUN uv sync --frozen
 # Copy the rest of the application tree over
 COPY . .
 
-# Set up local model tracking directories with full write permissions
-RUN mkdir -p /workspace/local_model_weights && chmod -R 777 /workspace
+# Set up the model weights directory the backend writes into (scoped, not the whole tree)
+RUN mkdir -p /workspace/model/local_model_weights && chmod -R 775 /workspace/model
 
-# Make the startup script executable
-RUN chmod +x /workspace/start.sh
+# Normalize line endings (script may be committed with Windows CRLF) and make executable
+RUN sed -i 's/\r$//' /workspace/start.sh && chmod +x /workspace/start.sh
 
 # Expose Hugging Face's expected public UI port
 EXPOSE 7860
 
-# Execute the dual entrypoint initialization routine
-CMD ["/workspace/start.sh"]
+# Execute the dual entrypoint initialization routine (invoke via bash so a stray
+# shebang line-ending can never break exec)
+CMD ["bash", "/workspace/start.sh"]

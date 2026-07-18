@@ -1,0 +1,17 @@
+{
+  "_comment": "Real permutation feature importance from the AutoGluon model, taken from the training notebook (predictor.feature_importance(test_data), cell-18). These are GLOBAL importances used to drive the dashboard's strength/risk drivers with genuine values instead of fabricated math. Regenerate whenever the model is retrained.",
+  "eval_metric": "roc_auc",
+  "model_version": "2026-07-final",
+  "feature_importance": {
+    "average_monthly_balance": 0.184496,
+    "epfo_wage_consistency_score": 0.095484,
+    "late_gst_filing_frequency": 0.085817,
+    "inflow_to_outflow_ratio": 0.056488,
+    "balance_depletion_speed_days": 0.028240,
+    "gstr1_vs_gstr3b_variance": 0.005257,
+    "active_employee_count_trend": 0.004286,
+    "upi_transaction_velocity_daily": -0.000003,
+    "b2b_vs_b2c_revenue_ratio": -0.000023,
+    "monthly_revenue_growth_rate": -0.000035
+  }
+}
