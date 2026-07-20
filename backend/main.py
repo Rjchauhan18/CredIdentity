@@ -1,8 +1,17 @@
-from fastapi import FastAPI, HTTPException, status
+import json
+import os
+
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from backend.schemas import MSMEEvaluationResponse
-from backend.credit_engine import evaluate_credit_profile, get_all_msmes, init_model, is_ready
+from backend.schemas import MSMEEvaluationResponse, RawMSMEProfile
+from backend.credit_engine import (
+    evaluate_credit_profile,
+    evaluate_raw_profile,
+    get_all_msmes,
+    init_model,
+    is_ready,
+)
 
 # Lifespan manager to load the heavy AutoGluon model on startup
 @asynccontextmanager
@@ -61,3 +70,60 @@ def evaluate_msme_profile(msme_id: str):
 def list_msmes():
     """Endpoint to populate the frontend search dropdown"""
     return {"msmes": get_all_msmes()}
+
+
+# Cap raw-profile uploads so a malformed/huge payload can't exhaust memory.
+MAX_RAW_PROFILE_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
+@app.post("/api/v1/evaluate-raw", response_model=MSMEEvaluationResponse)
+async def evaluate_raw(request: Request):
+    """Score a raw AA/GST/EPFO/UPI profile on the fly.
+
+    SECURITY NOTE: this endpoint is UNAUTHENTICATED. It is safe in the current
+    deployment only because CORS + the container network restrict it to the
+    co-located Streamlit frontend on loopback. Any internet-facing deployment MUST
+    put authentication (API key / OAuth) and rate limiting in front of it — it runs
+    model inference on arbitrary caller input. Body size is capped below.
+    """
+    if not is_ready():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Model engine is still initializing.",
+        )
+
+    body = await request.body()
+    if len(body) > MAX_RAW_PROFILE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Raw profile exceeds {MAX_RAW_PROFILE_BYTES // (1024*1024)} MB limit.",
+        )
+    try:
+        payload = json.loads(body)
+        profile = RawMSMEProfile(**payload)
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid raw MSME profile: {exc}",
+        )
+
+    try:
+        return evaluate_raw_profile(profile.model_dump())
+    except (KeyError, ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Could not derive features from profile (missing/invalid field): {exc}",
+        )
+
+
+@app.get("/api/v1/validation-report")
+def validation_report():
+    """Serve the precomputed offline validation + backtest artifact (if present)."""
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../model/validation_report.json"))
+    if not os.path.exists(path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Validation report not generated yet. Run scripts/build_validation_report.py.",
+        )
+    with open(path) as f:
+        return json.load(f)

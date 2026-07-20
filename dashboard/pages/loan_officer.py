@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils.api_client import get_msme_data, get_msme_dropdown_options
+from utils.api_client import get_msme_data, get_msme_dropdown_options, get_validation_report
 from utils.visualizations import create_driver_chart
 
 # Set page layout to wide for maximum data real estate
@@ -143,3 +143,33 @@ if selected_option and "No MSME records found" not in selected_option:
                 st.dataframe(feat_df, hide_index=True,width='stretch')
             else:
                 st.warning("Engineered signals missing from data stream parameters.")
+
+# ---------------------------------------------------------
+# MODEL VALIDATION REGISTRY (Point 2) — precomputed offline artifact
+# ---------------------------------------------------------
+st.divider()
+st.subheader("📐 Model Validation Registry")
+st.caption("Discrimination + calibration measured on a held-out labelled slice. Precomputed offline; not recomputed per request.")
+
+report = get_validation_report()
+if not report:
+    st.info("Validation report not available yet. Generate it with `python -m scripts.build_validation_report`.")
+else:
+    disc = report.get("discrimination", {})
+    v1, v2, v3, v4 = st.columns(4)
+    v1.metric("ROC-AUC", f"{disc.get('roc_auc', float('nan')):.4f}")
+    v2.metric("Gini", f"{disc.get('gini', float('nan')):.4f}")
+    v3.metric("KS Statistic", f"{disc.get('ks_statistic', float('nan')):.4f}")
+    v4.metric("Held-out Sample", f"{report.get('sample_size', 0):,}")
+
+    calib = report.get("calibration", [])
+    if calib:
+        st.markdown("**Calibration — predicted vs observed default rate (by decile)**")
+        calib_df = pd.DataFrame(calib).set_index("decile")[
+            ["predicted_default_rate", "observed_default_rate"]
+        ]
+        st.line_chart(calib_df, height=260)
+        st.caption(
+            f"Evaluated against a cohort default rate of {report.get('default_rate', 0):.2%}. "
+            "Closely tracking lines indicate well-calibrated probabilities."
+        )

@@ -5,8 +5,9 @@ services:
     ports:
       - "7860:7860"
     environment:
-      # Public model repo — no token needed
-      HF_MODEL_REPO: Rjchauhan/idbi-msme-autogluon-model
+      # Public model repo — no token needed. Slim WeightedEnsemble_L2_FULL (7-model
+      # blend, 43MB): <=5pt drift vs the full stack, no tier changes, seconds-fast load.
+      HF_MODEL_REPO: HydrallHarsh/Credidentity-slim-model
     volumes:
       # Model lives on a NAMED VOLUME (Docker VM's native ext4), not a Windows
       # bind-mount. Bind-mounting over Windows->WSL2 breaks mmap/pickle reads of

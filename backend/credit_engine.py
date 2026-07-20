@@ -107,6 +107,11 @@ def _fmt_value(feat: str, value: float) -> str:
 # whether an MSME's value is favorable or unfavorable versus the cohort.
 _feature_medians: Dict[str, float] = {}
 
+# Per-feature "healthy target" used by the counterfactual path-to-credit engine:
+# the cohort's 75th percentile for higher-is-better features, 25th for lower-is-better.
+# A realistic, data-grounded goalpost rather than an arbitrary nudge.
+_feature_targets: Dict[str, float] = {}
+
 def init_model():
     """Downloads model from Hugging Face and loads AutoGluon into memory."""
     global predictor, feature_importance
@@ -174,15 +179,22 @@ def is_ready() -> bool:
 
 
 def _compute_feature_medians():
-    """Cache per-feature medians from the served demo dataset for driver classification."""
-    global _feature_medians
+    """Cache per-feature medians + healthy-side targets from the served demo dataset."""
+    global _feature_medians, _feature_targets
     if not os.path.exists(CSV_PATH):
         _feature_medians = {}
+        _feature_targets = {}
         return
     df = pd.read_csv(CSV_PATH)
     _feature_medians = {
         col: float(df[col].median())
         for col in FEATURE_HIGHER_IS_BETTER
+        if col in df.columns
+    }
+    # Healthy target: 75th percentile when higher is better, 25th when lower is better.
+    _feature_targets = {
+        col: float(df[col].quantile(0.75 if higher_better else 0.25))
+        for col, higher_better in FEATURE_HIGHER_IS_BETTER.items()
         if col in df.columns
     }
 
@@ -252,31 +264,117 @@ def _build_drivers(features: Dict[str, Any]):
 
 
 def evaluate_credit_profile(msme_id: str) -> Optional[Dict[str, Any]]:
-    global predictor
+    """Score a demo-cohort MSME by id/name (looks up the row, then scores it)."""
     features = load_msme_features(msme_id)
     if not features:
         return None
+    return _evaluate_from_features(features)
+
+
+def evaluate_raw_profile(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Score a raw AA/GST/EPFO/UPI payload on the fly.
+
+    Runs the shared feature adapter (same math as the batch pipeline, minus the
+    training-only noise) and scores the result through the exact same path as the
+    demo cohort, so a pasted profile and a stored one are scored identically.
+    """
+    from data_pipeline.feature_adapter import compute_features_for_record
+    features = compute_features_for_record(raw)
+    return _evaluate_from_features(features)
+
+
+def _prob_healthy_batch(rows: list) -> list:
+    """Run the model on N feature dicts in ONE predict_proba call and return the
+    list of P(healthy) (class 0). Batching keeps counterfactual re-scoring to a
+    single inference instead of one per feature."""
+    df_input = pd.DataFrame(rows).drop(columns=NON_FEATURE_COLUMNS, errors="ignore")
+    probabilities = predictor.predict_proba(df_input)
+    healthy_label = 0 if 0 in probabilities.columns else predictor.class_labels[0]
+    return [float(v) for v in probabilities[healthy_label].to_numpy()]
+
+
+def _prob_healthy(features: Dict[str, Any]) -> float:
+    """Run the model on one feature dict and return P(healthy) (class 0)."""
+    return _prob_healthy_batch([features])[0]
+
+
+def _score_from_prob(prob_healthy: float) -> int:
+    """Map P(healthy) to the 300-900 credit score (single source of truth)."""
+    return max(300, min(900, int(300 + (prob_healthy * 600))))
+
+
+def _tier_for(score: int) -> str:
+    if score >= 750: return "Excellent"
+    if score >= 650: return "Good"
+    if score >= 550: return "Average"
+    return "Substandard"
+
+
+def _build_counterfactual(features: Dict[str, Any], base_score: int) -> list:
+    """Grounded 'path to a better score': perturb each model feature toward its
+    healthy direction (to the cohort's 75th-percentile-ish target), re-score with
+    the REAL model, and return the levers that lift the score most.
+
+    This is an honest counterfactual — every projected gain comes from an actual
+    model re-scoring, not a heuristic. Returns up to 3 levers sorted by gain.
+    """
+    # Build one trial row per candidate lever, then score them all in a SINGLE
+    # inference call rather than one predict_proba per feature.
+    candidates = []  # (feat, current, target)
+    trial_rows = []
+    for feat, higher_better in FEATURE_HIGHER_IS_BETTER.items():
+        if feat not in features or feat not in _feature_medians:
+            continue
+        current = float(features[feat])
+        target = _feature_targets.get(feat)
+        if target is None:
+            continue
+        # Only suggest a move if the feature is currently on the unhealthy side of the target.
+        if higher_better and current >= target:
+            continue
+        if not higher_better and current <= target:
+            continue
+
+        trial = dict(features)
+        trial[feat] = target
+        candidates.append((feat, current, target))
+        trial_rows.append(trial)
+
+    if not trial_rows:
+        return []
+
+    new_scores = [_score_from_prob(p) for p in _prob_healthy_batch(trial_rows)]
+
+    paths = []
+    for (feat, current, target), new_score in zip(candidates, new_scores):
+        gain = new_score - base_score
+        if gain <= 0:
+            continue
+        paths.append({
+            "feature": feat,
+            "label": FEATURE_LABELS.get(feat, feat),
+            "current_value": _fmt_value(feat, current),
+            "target_value": _fmt_value(feat, target),
+            "projected_score_gain": gain,
+            "projected_score": new_score,
+            "crosses_tier": _tier_for(new_score) != _tier_for(base_score),
+        })
+
+    paths.sort(key=lambda p: p["projected_score_gain"], reverse=True)
+    return paths[:3]
+
+
+def _evaluate_from_features(features: Dict[str, Any]) -> Dict[str, Any]:
+    global predictor
 
     # ---- 1. AUTOGLUON MODEL INFERENCE ----
     # Strip the label/leakage columns before scoring so we never feed the answer key in.
-    df_input = pd.DataFrame([features]).drop(columns=NON_FEATURE_COLUMNS, errors="ignore")
-
-    # predict_proba returns a DataFrame whose columns ARE the class labels. Index by the
-    # explicit "healthy" label (0 = not defaulter) rather than positional [0], so the score
-    # can never silently invert if AutoGluon reorders classes.
-    probabilities = predictor.predict_proba(df_input)
-    healthy_label = 0 if 0 in probabilities.columns else predictor.class_labels[0]
-    default_label = 1 if 1 in probabilities.columns else predictor.class_labels[-1]
-    prob_healthy = float(probabilities.iloc[0][healthy_label])
-    prob_default = float(probabilities.iloc[0][default_label])
+    prob_healthy = _prob_healthy(features)
+    prob_default = 1.0 - prob_healthy
 
     # Convert probability to a 300-900 Credit Score Scale
-    overall_credit_score = max(300, min(900, int(300 + (prob_healthy * 600))))
-
-    if overall_credit_score >= 750: tier = "Excellent"
-    elif overall_credit_score >= 650: tier = "Good"
-    elif overall_credit_score >= 550: tier = "Average"
-    else: tier = "Substandard"
+    overall_credit_score = _score_from_prob(prob_healthy)
+    tier = _tier_for(overall_credit_score)
 
     # Calibrated separation between the two classes (0-100), not floored.
     model_confidence = round(abs(prob_healthy - prob_default) * 100, 1)
@@ -303,10 +401,25 @@ def evaluate_credit_profile(msme_id: str) -> Optional[Dict[str, Any]]:
     # ---- 3. DRIVER INSIGHTS (real permutation importance + actual feature values) ----
     strengths, risks = _build_drivers(features)
 
-    if features['bounce_mandate_failure_rate'] > 0.05:
-        guidance = "Prioritize clean settlement clearing metrics. Reducing system payment mandate faults by half can optimize overall rating profiles by ~42 points."
+    # ---- 4. COUNTERFACTUAL PATH TO CREDIT (real model re-scoring) ----
+    counterfactual_paths = _build_counterfactual(features, overall_credit_score)
+
+    # Grounded guidance derived from the top real lever, replacing the old hardcoded text.
+    if counterfactual_paths:
+        top = counterfactual_paths[0]
+        tier_note = (
+            f" — enough to move from {_tier_for(overall_credit_score)} to {_tier_for(top['projected_score'])}"
+            if top["crosses_tier"] else ""
+        )
+        guidance = (
+            f"Improving {top['label']} from {top['current_value']} toward {top['target_value']} "
+            f"is projected to raise the score by ~{top['projected_score_gain']} points{tier_note}."
+        )
     else:
-        guidance = "Improve the capital depletion cycle by extending liquidity coverage windows beyond 20 days to access superior commercial banking tiers."
+        guidance = (
+            "This profile already scores at or above the cohort's healthy targets on the "
+            "model's key drivers; maintain current financial discipline to hold the rating."
+        )
 
     assessment_note = f"Cloud AI confirms MSME exhibits operational resilience in {tier} risk classification parameters."
 
@@ -344,5 +457,6 @@ def evaluate_credit_profile(msme_id: str) -> Optional[Dict[str, Any]]:
             "top_3_risks": risks
         },
         "actionable_guidance": guidance,
-        "automated_credit_assessment_note": assessment_note
+        "automated_credit_assessment_note": assessment_note,
+        "counterfactual_paths": counterfactual_paths
     }
