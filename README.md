@@ -126,6 +126,30 @@ SHAP analysis confirms that the model bases its decisions on economically meanin
 
 ---
 
+## 🪶 Model Slimming: 10 GB → 43 MB (99.6% Smaller)
+
+The trained AutoGluon ensemble was accurate but enormous — a **34-model, multi-layer stack** where every model carried 3 bagging fold-copies plus the full training cache. Serving predictions needs none of that weight.
+
+We built a slim deployment model that keeps a **7-model `WeightedEnsemble_L2_FULL` blend** (the refit `_FULL` variant, which collapses each model's fold-copies into a single trained booster). That one change is where virtually all of the size lived.
+
+| Metric | Full Model | Slim Model | Reduction |
+| ------ | ---------: | ---------: | --------: |
+| Footprint | 10,077 MB | 43.5 MB | **99.57%** (232× smaller) |
+| File count | 1,231 | 33 | 97.3% |
+| Cold-start load | tens of seconds | ~seconds | — |
+
+The size reduction cost almost nothing in accuracy, and this was **verified company-by-company**, not assumed:
+
+- **Max credit-score drift: ≤5 points out of 900** (0.56% worst case).
+- **23 of 50 companies score identically**; the single worst case moves 368 → 373.
+- **Zero tier changes** across all 50 companies — no lending decision flips.
+
+Fidelity was confirmed end-to-end by serving the slim model through the real backend on a clean download from the public Hugging Face repo, then matching every endpoint score against the offline drift report.
+
+> **Scope note:** this shrinks the *model weights* 232×, not the runtime container image (Python + PyTorch + AutoGluon + CUDA libraries), which is unchanged.
+
+---
+
 ## 🛠️ Local Installation & Running Guide
 
 Ensure you have Python 3.10 installed. This project leverages the ultra-fast package manager `uv` by Astral for execution safety.
@@ -192,7 +216,7 @@ This project is optimized for deployment as a single **Docker-based Space** on H
 
 The included `Dockerfile` and `start.sh` handle running the dual processes in parallel inside a secure container:
 
-* **Internal Port 8000:** Handles the FastAPI prediction engine, loading weights directly from your secure private repository via `huggingface_hub` snapshot downloads.
+* **Internal Port 8000:** Handles the FastAPI prediction engine, loading weights from the public Hugging Face model repository via `huggingface_hub` snapshot downloads.
 * **Public Port 7860:** Exposes the Streamlit interface to users and judges.
 
 ### 🔄 Automated CI/CD Deployment via GitHub Actions
