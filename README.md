@@ -148,6 +148,29 @@ Fidelity was confirmed end-to-end by serving the slim model through the real bac
 
 > **Scope note:** this shrinks the *model weights* 232×, not the runtime container image (Python + PyTorch + AutoGluon + CUDA libraries), which is unchanged.
 
+### How the slim model is built
+
+[`scripts/slim_model.py`](scripts/slim_model.py) is **non-destructive** — it copies the source model, trims the copy, proves the scores on the held-out demo cohort, and leaves the original untouched. Re-uploading the slim copy to the HF repo is a deliberate manual step.
+
+The core trick is the **`_FULL` refit variant**. A bagged model (e.g. `LightGBM_r96_BAG_L1`) delegates prediction to per-fold children (`S1F1/S1F2/S1F3`) stored *inside* the bag's own folder, not as standalone trainer entries. Ripped out on its own, the bag asks the trainer to load `S1F1`, gets "model does not exist", and crashes with `NoneType.predict` — so **a bagged model cannot serve in isolation**. The fix is to serve the non-bagged `_FULL` refit (a single booster trained on all data, no fold children), which AutoGluon builds during training or on demand via `refit_full()`. The script supports several keep-modes (`best`, `single`, `ensemble_l2`, `ensemble_l3`, `ensemble_topn`); the deployed model uses the `WeightedEnsemble_L2_FULL` blend.
+
+### Model versioning & environment pins
+
+The slim model is a **serialized AutoGluon artifact**, so it is coupled to the toolchain it was trained with. These pins live in the model repo's `metadata.json` and matter because AutoGluon asserts on a mismatch at load time:
+
+| Component | Trained/pinned version | Why it matters |
+| --------- | ---------------------- | -------------- |
+| AutoGluon | `1.5.0` | Serialization format is version-specific; loading under a different major/minor emits metadata-mismatch warnings and can fail. |
+| Python | `3.12.13` (`3.12` series) | The FastAI/Torch fold learners pickle `PosixPath` objects; loading under a *different* Python + OS can break unpickling. |
+| OS | `Linux` | Model was trained on Linux; the deploy target (HF Spaces Docker) is also Linux, so paths deserialize cleanly. |
+| PyTorch | `2.9.1` | Backs the neural-net base learners. |
+| LightGBM / XGBoost / CatBoost | `4.6.0` / `3.1.3` / `1.2.10` | Tree boosters in the ensemble; each deserializes its own booster format. |
+| scikit-learn / NumPy / pandas | `1.6.1` / `2.0.2` / `2.3.3` | Feature pipeline + RandomForest/ExtraTrees learners. |
+
+> **Local-dev caveat:** loading this model on **Windows or a non-3.12 Python** trips a `NotImplementedError: cannot instantiate 'PosixPath'` from the pickled FastAI learners. Production is unaffected (Linux + matching Python). For local inspection only, a `pathlib.PosixPath = pathlib.WindowsPath` shim works around it — never commit that shim into serving code. To regenerate the model cleanly, match the versions above (`uv sync` installs the locked set).
+
+Whenever you retrain or bump AutoGluon, re-run `scripts/slim_model.py` to rebuild the slim artifact against the new toolchain and re-verify the per-company drift before re-uploading — a slim model built under one AutoGluon version should not be served under another.
+
 ---
 
 ## 🛠️ Local Installation & Running Guide
