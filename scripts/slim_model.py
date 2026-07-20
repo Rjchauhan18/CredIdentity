@@ -61,7 +61,7 @@ def main():
     #   a model name (e.g. "WeightedEnsemble_L2" or "XGBoost_BAG_L2") -> keep just that,
     #      giving a tiny model that cold-starts in seconds (may shift scores slightly).
     ap.add_argument("--keep", default="best",
-                    help="'best', 'single', 'ensemble_l2', 'ensemble_topn', or a model name")
+                    help="'best', 'single', 'ensemble_l2', 'ensemble_l3', 'ensemble_topn', or a model name")
     ap.add_argument("--topn", type=int, default=12,
                     help="for --keep ensemble_topn: how many top L1 base models to blend")
     args = ap.parse_args()

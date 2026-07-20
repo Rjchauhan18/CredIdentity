@@ -50,17 +50,13 @@ df = pd.read_csv("data/processed/msme_demo_features.csv").drop(
     columns=["is_defaulter", "risk_band", "bounce_mandate_failure_rate",
              "msme_id", "company_name"], errors="ignore").head(1)
 
-for lm in (True, False):
-    try:
-        m2 = trainer.load_model(TARGET)
-        # Force-load children if the bag supports it
-        if hasattr(m2, "load_child_models"):
-            print(f"\n[low_memory={lm}] bag has load_child_models(); calling it")
-        pr = p.predict_proba(df, model=TARGET)
-        print(f"[predict via predictor, model={TARGET}] OK -> {pr.values.tolist()}")
-        break
-    except Exception as e:
-        print(f"[predict model={TARGET}] FAILED: {repr(e)}")
+try:
+    m2 = trainer.load_model(TARGET)
+    print(f"\nbag has load_child_models(): {hasattr(m2, 'load_child_models')}")
+    pr = p.predict_proba(df, model=TARGET)
+    print(f"[predict via predictor, model={TARGET}] OK -> {pr.values.tolist()}")
+except Exception as e:
+    print(f"[predict model={TARGET}] FAILED: {repr(e)}")
 
 # 5) Inspect the persisted child fold directly
 print("\n--- child fold inspection ---")

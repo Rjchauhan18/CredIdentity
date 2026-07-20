@@ -59,7 +59,7 @@ class MSMEEvaluationResponse(BaseModel):
     shap_drivers: ShapDrivers
     actionable_guidance: str
     automated_credit_assessment_note: str
-    counterfactual_paths: List[CounterfactualPath] = []
+    counterfactual_paths: List[CounterfactualPath] = Field(default_factory=list)
 
 
 class RawMSMEProfile(BaseModel):

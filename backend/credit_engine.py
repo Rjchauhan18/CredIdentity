@@ -283,12 +283,19 @@ def evaluate_raw_profile(raw: Dict[str, Any]) -> Dict[str, Any]:
     return _evaluate_from_features(features)
 
 
-def _prob_healthy(features: Dict[str, Any]) -> float:
-    """Run the model on one feature dict and return P(healthy) (class 0)."""
-    df_input = pd.DataFrame([features]).drop(columns=NON_FEATURE_COLUMNS, errors="ignore")
+def _prob_healthy_batch(rows: list) -> list:
+    """Run the model on N feature dicts in ONE predict_proba call and return the
+    list of P(healthy) (class 0). Batching keeps counterfactual re-scoring to a
+    single inference instead of one per feature."""
+    df_input = pd.DataFrame(rows).drop(columns=NON_FEATURE_COLUMNS, errors="ignore")
     probabilities = predictor.predict_proba(df_input)
     healthy_label = 0 if 0 in probabilities.columns else predictor.class_labels[0]
-    return float(probabilities.iloc[0][healthy_label])
+    return [float(v) for v in probabilities[healthy_label].to_numpy()]
+
+
+def _prob_healthy(features: Dict[str, Any]) -> float:
+    """Run the model on one feature dict and return P(healthy) (class 0)."""
+    return _prob_healthy_batch([features])[0]
 
 
 def _score_from_prob(prob_healthy: float) -> int:
@@ -311,7 +318,10 @@ def _build_counterfactual(features: Dict[str, Any], base_score: int) -> list:
     This is an honest counterfactual — every projected gain comes from an actual
     model re-scoring, not a heuristic. Returns up to 3 levers sorted by gain.
     """
-    paths = []
+    # Build one trial row per candidate lever, then score them all in a SINGLE
+    # inference call rather than one predict_proba per feature.
+    candidates = []  # (feat, current, target)
+    trial_rows = []
     for feat, higher_better in FEATURE_HIGHER_IS_BETTER.items():
         if feat not in features or feat not in _feature_medians:
             continue
@@ -327,7 +337,16 @@ def _build_counterfactual(features: Dict[str, Any], base_score: int) -> list:
 
         trial = dict(features)
         trial[feat] = target
-        new_score = _score_from_prob(_prob_healthy(trial))
+        candidates.append((feat, current, target))
+        trial_rows.append(trial)
+
+    if not trial_rows:
+        return []
+
+    new_scores = [_score_from_prob(p) for p in _prob_healthy_batch(trial_rows)]
+
+    paths = []
+    for (feat, current, target), new_score in zip(candidates, new_scores):
         gain = new_score - base_score
         if gain <= 0:
             continue
