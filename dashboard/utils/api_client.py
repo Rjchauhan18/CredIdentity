@@ -58,6 +58,38 @@ def get_msme_data(msme_id):
     return None
 
 
+def evaluate_raw_profile(raw_json: dict):
+    """POST a raw AA/GST/EPFO profile to the backend and return the scored result.
+
+    Not cached — each pasted profile is a one-off. Returns (data, error_message).
+    """
+    try:
+        response = http_session.post(f"{API_URL}/evaluate-raw", json=raw_json, timeout=20)
+        if response.status_code == 200:
+            return response.json(), None
+        try:
+            detail = response.json().get("detail", response.text)
+        except ValueError:
+            detail = response.text
+        return None, f"Backend rejected the profile (HTTP {response.status_code}): {detail}"
+    except requests.exceptions.Timeout:
+        return None, "Connection timed out while scoring the raw profile."
+    except requests.exceptions.RequestException:
+        return None, "Unable to reach the backend scoring engine."
+
+
+@st.cache_data
+def get_validation_report():
+    """Fetch the precomputed offline validation + backtest artifact. Cached for the session."""
+    try:
+        response = http_session.get(f"{API_URL}/validation-report", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except requests.exceptions.RequestException:
+        pass
+    return None
+
+
 @st.cache_data
 def get_msme_dropdown_options():
     """

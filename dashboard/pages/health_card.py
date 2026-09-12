@@ -1,10 +1,34 @@
 import streamlit as st
 from utils.visualizations import create_radar_chart, create_driver_chart, create_score_gauge
 from utils.loan_matcher import get_top_matches
-from utils.api_client import get_msme_data, get_msme_dropdown_options
+from utils.api_client import get_msme_data, get_msme_dropdown_options, evaluate_raw_profile
 
 st.title("🏢 MSME Financial Health Card")
 st.caption("Alternative-data credit identity for New-to-Credit micro-enterprises")
+
+# --- Point 4: score a raw digital-footprint profile on the fly ---
+with st.expander("📤 Score a raw profile (AA / GST / EPFO JSON)"):
+    st.caption(
+        "Paste a raw MSME payload (account_aggregator, gst_data, epfo_data). "
+        "The backend derives the 12 features and scores it with the live model."
+    )
+    raw_text = st.text_area("Raw profile JSON", height=180, key="raw_profile_json")
+    if st.button("Score raw profile"):
+        import json as _json
+        try:
+            parsed = _json.loads(raw_text)
+        except _json.JSONDecodeError as exc:
+            st.error(f"Invalid JSON: {exc}")
+        else:
+            result, err = evaluate_raw_profile(parsed)
+            if err:
+                st.error(err)
+            else:
+                st.success(
+                    f"Scored **{result['company_name']}** → "
+                    f"**{result['overall_credit_score']}/900** ({result['credit_rating_tier']})"
+                )
+                st.json(result, expanded=False)
 
 options = get_msme_dropdown_options()
 
@@ -103,6 +127,21 @@ if options:
                         st.caption("No distress signals detected.")
 
                 st.info(f"💡 **Actionable Guidance:** {data['actionable_guidance']}")
+
+                # --- Point 5: counterfactual "path to a better score" ---
+                paths = data.get('counterfactual_paths', [])
+                if paths:
+                    st.markdown("##### 🧭 Path to a Better Score")
+                    st.caption("Each lever is re-scored on the real model — projected gains, not guesses.")
+                    for p in paths:
+                        tier_badge = " · unlocks a higher tier" if p.get('crosses_tier') else ""
+                        st.markdown(
+                            f"<div style='padding:8px 10px;margin-bottom:6px;border-left:3px solid #1E88E5;"
+                            f"background:rgba(30,136,229,0.08);border-radius:4px;'>"
+                            f"<b>{p['label']}</b> <span style='color:#1E88E5;'>+{p['projected_score_gain']} pts → {p['projected_score']}</span>{tier_badge}"
+                            f"<br><span style='color:#94A3B8;font-size:13px;'>Move from {p['current_value']} toward {p['target_value']}.</span></div>",
+                            unsafe_allow_html=True,
+                        )
 
             st.divider()
             st.markdown("##### 🏦 OCEN 4.0 Pre-Matched Loan Products")

@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 
+from utils.api_client import get_validation_report
+
 st.title("📈 Executive Portfolio Overview")
 st.caption("Aggregated risk metrics across the served New-to-Credit (NTC) MSME cohort")
 st.divider()
@@ -73,3 +75,34 @@ if os.path.exists(csv_path):
         st.error(f"📊 **Trend Analysis:** Cash Flow Resiliency is under stress. {high_bounce_count} MSMEs flagged for mandate bounce rates exceeding 10%.")
 else:
     st.info("Demo cohort not found. Please run `python -m data_pipeline.build_demo_dataset` to populate portfolio metrics.")
+
+# ---------------------------------------------------------
+# BUSINESS-OUTCOME BACKTEST (Point 3) — approval vs default tradeoff
+# ---------------------------------------------------------
+st.divider()
+st.subheader("💼 Approval Policy Simulator")
+st.caption("How the score cutoff trades approval volume against defaults, measured on a held-out labelled slice.")
+
+report = get_validation_report()
+backtest = report.get("backtest", []) if report else []
+
+if not backtest:
+    st.info("Backtest data not available yet. Generate it with `python -m scripts.build_validation_report`.")
+else:
+    bt_df = pd.DataFrame(backtest)
+    cutoffs = bt_df["cutoff"].tolist()
+    chosen = st.select_slider("Approval score cutoff", options=cutoffs, value=cutoffs[len(cutoffs) // 2])
+    row = bt_df[bt_df["cutoff"] == chosen].iloc[0]
+
+    b1, b2, b3 = st.columns(3)
+    b1.metric("Approval Rate", f"{row['approval_rate'] * 100:.1f}%")
+    b2.metric("Default Rate (Approved)", f"{row['bad_rate_among_approved'] * 100:.2f}%")
+    b3.metric("Defaults Avoided", f"{int(row['defaults_avoided']):,}")
+    st.caption(
+        f"At a cutoff of **{chosen}**, the bank approves {row['approval_rate'] * 100:.1f}% of applicants "
+        f"with a {row['bad_rate_among_approved'] * 100:.2f}% default rate among those approved."
+    )
+
+    st.markdown("**Approval rate vs default rate across all cutoffs**")
+    curve = bt_df.set_index("cutoff")[["approval_rate", "bad_rate_among_approved"]]
+    st.line_chart(curve, height=280)

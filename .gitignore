@@ -230,3 +230,6 @@ model/results/
 model/local_model_weights/
 media/
 
+# Slim deployment model (43MB L2_FULL) — lives on HF, not in git
+data/slim_model_weights/
+
